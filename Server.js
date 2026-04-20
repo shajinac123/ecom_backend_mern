@@ -1,3 +1,5 @@
+import dotenv from "dotenv"
+dotenv.config()
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
@@ -8,9 +10,11 @@ import CategoryRouter from "./routes/category.route.js"
 import ProductRouter from  "./routes/product.route.js"
 import AuthRouter from "./routes/auth.route.js"
 
+
+
 const app = express();
 
-mongoose.connect('mongodb+srv://shajinac123_db_user:shajinac123_db_user@cluster0.vz8heik.mongodb.net/ecommerce')
+mongoose.connect(process.env.MONGO_URL)
   .then(() => console.log('Connected to MongoDB local'))
   .catch(err => console.error('Could not connect to MongoDB', err));
 
