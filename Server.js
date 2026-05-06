@@ -1,5 +1,4 @@
 import dotenv from "dotenv"
-//edit from ameen
 dotenv.config()
 import express from 'express';
 import cors from 'cors';
@@ -10,6 +9,8 @@ import categorymodel from './models/category.model.js';
 import CategoryRouter from "./routes/category.route.js"
 import ProductRouter from  "./routes/product.route.js"
 import AuthRouter from "./routes/auth.route.js"
+import CartRouter from "./routes/cart.route.js"
+import OrderRouter from "./routes/order.routes.js"
 
 
 
@@ -28,7 +29,8 @@ app.use(express.json())
 app.use(CategoryRouter)
 app.use(ProductRouter)
 app.use(AuthRouter)
-
+app.use("/api",CartRouter)
+app.use(OrderRouter)
 
 
 
