@@ -1,4 +1,5 @@
 import Order from "../models/order.models.js";
+import Cart from "../models/cart.model.js";
 
 // POST /api/order
 export const PostOrder = async (req, res) => {
@@ -83,6 +84,10 @@ export const PostOrder = async (req, res) => {
 
     const savedOrder = await order.save();
 
+    await Cart.deleteMany({
+  user: req.user.id,
+});
+
     res.status(201).json({
       message: "Order placed successfully",
       order: savedOrder,
@@ -99,12 +104,39 @@ export const PostOrder = async (req, res) => {
 
 
 
-export const GetOrder=  async (req,res)=>
-    {
-    try {
-    const orders = await order.find()
+export const GetOrder = async (req, res) => {
+  try {
+    const orders = await Order.find()
+
     res.json(orders);
-  } catch (err) {
+  }
+  catch (err) {
+    
     res.status(500).json({ message: "Server error" });
+
   }
 }
+
+export const UpdateOrderStatus = async (req, res) => {
+
+  try {
+
+    const updatedOrder =
+      await Order.findByIdAndUpdate(
+        req.params.id,
+        {
+          orderStatus: req.body.status,
+        },
+        { new: true }
+      );
+
+    res.json(updatedOrder);
+
+  } catch (err) {
+
+    res.status(500).json({
+      message: "Status update failed",
+    });
+
+  }
+};
