@@ -4,8 +4,8 @@ import Cart from "../models/cart.model.js";
 // POST /api/order
 
 import axios from "axios";
-import Order from "../models/orderModel.js";
-import Cart from "../models/cartModel.js";
+
+
 
 export const PostOrder = async (req, res) => {
   try {
