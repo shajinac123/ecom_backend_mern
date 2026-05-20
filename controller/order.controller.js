@@ -25,11 +25,16 @@ export const getSingleOrder = async (req, res) => {
   }
 };
 
+import axios from "axios";
+import Order from "../models/order.model.js";
+import Cart from "../models/cart.model.js";
+
 export const PostOrder = async (req, res) => {
   try {
     // Auth check
     if (!req.user || !req.user.id) {
       return res.status(401).json({
+        success: false,
         message: "Unauthorized",
       });
     }
@@ -39,25 +44,12 @@ export const PostOrder = async (req, res) => {
     // Validate items
     if (!items || items.length === 0) {
       return res.status(400).json({
+        success: false,
         message: "No items in order",
       });
     }
 
-    for (let item of items) {
-      if (
-        !item.product ||
-        !item.name ||
-        !item.price ||
-        !item.quantity ||
-        !item.image
-      ) {
-        return res.status(400).json({
-          message: "Invalid item structure",
-        });
-      }
-    }
-
-    // Validate shipping address
+    // Shipping validation
     const {
       fullName,
       phone,
@@ -76,45 +68,51 @@ export const PostOrder = async (req, res) => {
       !pincode
     ) {
       return res.status(400).json({
+        success: false,
         message: "Incomplete shipping address",
+      });
+    }
+
+    // Validate phone
+    if (!/^[0-9]{10}$/.test(phone)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid phone number",
       });
     }
 
     // Validate payment method
     if (!["COD", "UPI", "CARD"].includes(paymentMethod)) {
       return res.status(400).json({
+        success: false,
         message: "Invalid payment method",
       });
     }
 
-    // Calculate total
+    // Total amount
     const totalAmount = items.reduce(
-      (sum, item) => sum + item.price * item.quantity,
+      (sum, item) =>
+        sum + Number(item.price) * Number(item.quantity),
       0
     );
 
-    // Create order in MongoDB
+    // Create order
     const order = new Order({
       user: req.user.id,
       items,
-      shippingAddress: {
-        fullName,
-        phone,
-        address,
-        city,
-        state,
-        pincode,
-      },
+      shippingAddress,
       paymentMethod,
       totalAmount,
-      paymentStatus: paymentMethod === "COD" ? "PENDING" : "INITIATED",
+      paymentStatus:
+        paymentMethod === "COD"
+          ? "PENDING"
+          : "INITIATED",
     });
 
     const savedOrder = await order.save();
 
-    // COD order
+    // COD
     if (paymentMethod === "COD") {
-
       await Cart.deleteMany({
         user: req.user.id,
       });
@@ -126,19 +124,22 @@ export const PostOrder = async (req, res) => {
       });
     }
 
-    // CASHFREE ORDER CREATE
+    // CASHFREE ORDER
     const cashfreeResponse = await axios.post(
       "https://sandbox.cashfree.com/pg/orders",
       {
         order_id: savedOrder._id.toString(),
-        order_amount: totalAmount,
+
+        order_amount: Number(totalAmount),
+
         order_currency: "INR",
 
         customer_details: {
           customer_id: req.user.id.toString(),
           customer_name: fullName,
           customer_phone: phone,
-          customer_email: req.user.email || "test@gmail.com",
+          customer_email:
+            req.user.email || "test@gmail.com",
         },
 
         order_meta: {
@@ -149,14 +150,18 @@ export const PostOrder = async (req, res) => {
       {
         headers: {
           "x-client-id": process.env.CASHFREE_APP_ID,
-          "x-client-secret": process.env.CASHFREE_SECRET_KEY,
-          "x-api-version": "2025-01-01",
+
+          "x-client-secret":
+            process.env.CASHFREE_SECRET_KEY,
+
+          "x-api-version": "2023-08-01",
+
           "Content-Type": "application/json",
         },
       }
     );
 
-    // Save Cashfree details
+    // Save payment details
     savedOrder.cashfree_order_id =
       cashfreeResponse.data.cf_order_id;
 
@@ -165,22 +170,26 @@ export const PostOrder = async (req, res) => {
 
     await savedOrder.save();
 
-    // Response to frontend
     res.status(201).json({
       success: true,
       message: "Cashfree order created",
-      order: savedOrder,
 
       payment_session_id:
         cashfreeResponse.data.payment_session_id,
+
+      order: savedOrder,
     });
 
   } catch (err) {
-    console.error(err.response?.data || err);
+    console.log(
+      "CASHFREE ERROR:",
+      err.response?.data || err.message
+    );
 
     res.status(500).json({
+      success: false,
       message: "Server Error",
-      error: err.message,
+      error: err.response?.data || err.message,
     });
   }
 };
