@@ -25,9 +25,7 @@ export const getSingleOrder = async (req, res) => {
   }
 };
 
-import axios from "axios";
-import Order from "../models/order.model.js";
-import Cart from "../models/cart.model.js";
+
 
 export const PostOrder = async (req, res) => {
   try {
