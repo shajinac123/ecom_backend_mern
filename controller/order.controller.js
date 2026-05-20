@@ -322,3 +322,84 @@ export const UpdateOrderStatus = async (req, res) => {
 
   }
 };
+
+
+//payment webhook
+
+
+export const cashfreeWebhook = async (
+  req,
+  res
+) => {
+  try {
+    console.log(
+      "Cashfree Webhook:",
+      req.body
+    );
+
+    const data = req.body;
+
+    // CASHFREE DATA
+    const orderId =
+      data?.data?.order?.order_id;
+
+    const paymentStatus =
+      data?.data?.payment?.payment_status;
+
+    // FIND ORDER
+    const order =
+      await Order.findById(orderId);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    // PAYMENT SUCCESS
+    if (paymentStatus === "SUCCESS") {
+
+      order.isPaid = true;
+
+      order.orderStatus = "Processing";
+
+      await order.save();
+
+      console.log(
+        "Payment Successful"
+      );
+    }
+
+    // PAYMENT FAILED
+    if (
+      paymentStatus === "FAILED"
+    ) {
+
+      order.isPaid = false;
+
+      order.orderStatus = "Cancelled";
+
+      await order.save();
+
+      console.log(
+        "Payment Failed"
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Webhook processed successfully",
+    });
+
+  } catch (err) {
+
+    console.log(err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
