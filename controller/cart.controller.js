@@ -1,8 +1,7 @@
 import Cart from "../models/cart.model.js";
+import promodel from "../models/Product_model.js";
 
-//create cart
-
-
+// CREATE CART
 export const CreateCart = async (req, res) => {
   try {
     const { productId, quantity } = req.body;
@@ -18,7 +17,7 @@ export const CreateCart = async (req, res) => {
     }
 
     // Check product
-    const product = await Product.findById(productId);
+    const product = await promodel.findById(productId);
 
     if (!product) {
       return res.status(404).json({
@@ -69,6 +68,7 @@ export const CreateCart = async (req, res) => {
       message: "Item added to cart",
       cart,
     });
+
   } catch (err) {
     console.error("CREATE CART ERROR:", err);
 
