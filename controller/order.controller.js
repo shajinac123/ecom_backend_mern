@@ -288,7 +288,8 @@ export const PostOrder = async (req, res) => {
 
 export const GetOrder = async (req, res) => {
   try {
-    const orders = await Order.find()
+    // const orders = await Order.find()
+    const orders = await Order.find().sort({ createdAt: -1 });
 
     res.json(orders);
   }
