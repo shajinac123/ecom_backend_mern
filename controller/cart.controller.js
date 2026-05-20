@@ -5,52 +5,79 @@ import Cart from "../models/cart.model.js";
 
 export const CreateCart = async (req, res) => {
   try {
-    const { _id, price, quantity } = req.body;
+    const { productId, quantity } = req.body;
 
     const userId = req.user?.id;
 
+    // Check user
     if (!userId) {
-      return res.status(401).json({ message: "User not authenticated" });
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
     }
 
+    // Check product
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    // Find cart
     let cart = await Cart.findOne({ user: userId });
 
+    // Create new cart
     if (!cart) {
       cart = new Cart({
         user: userId,
         items: [
           {
-            product: _id,
+            product: productId,
             quantity: quantity || 1,
-            price,
+            price: product.price,
           },
         ],
       });
     } else {
+      // Check existing product
       const itemIndex = cart.items.findIndex(
-        (item) => item.product.toString() === _id
+        (item) => item.product.toString() === productId
       );
 
       if (itemIndex > -1) {
+        // Increase quantity
         cart.items[itemIndex].quantity += quantity || 1;
       } else {
+        // Add new item
         cart.items.push({
-          product: _id,
+          product: productId,
           quantity: quantity || 1,
-          price,
+          price: product.price,
         });
       }
     }
 
+    // Save cart
     await cart.save();
 
-    res.json(cart);
+    res.status(201).json({
+      success: true,
+      message: "Item added to cart",
+      cart,
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    console.error("CREATE CART ERROR:", err);
+
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
   }
 };
-
 // Get CART
 
 export const GetCart = async (req, res) => {
