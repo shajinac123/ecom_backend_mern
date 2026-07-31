@@ -142,7 +142,8 @@ export const PostOrder = async (req, res) => {
 
         order_meta: {
           return_url:
-            "http://54.196.231.231/orderdetails?order_id={order_id}",
+            // "http://54.196.231.231/orderdetails?order_id={order_id}",
+            "http://localhost:5173/orderdetails?order_id={order_id}",
         },
       },
       {

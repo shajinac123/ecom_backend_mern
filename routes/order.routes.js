@@ -8,7 +8,7 @@ const router = express.Router();
 router.post("/api/order",authMiddleware, PostOrder)
 router.get("/api/order",authMiddleware,GetOrder)
 router.put("/api/order/:id",authMiddleware,UpdateOrderStatus)
-router.get("/api/order/:id", authMiddleware, getSingleOrder);
+router.get("/api/order/:id",getSingleOrder);
 router.post("/api/cashfree/webhook",cashfreeWebhook);
 
 export default router

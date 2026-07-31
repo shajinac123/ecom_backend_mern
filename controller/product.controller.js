@@ -37,9 +37,10 @@ export const FrontProduct = async (req, res) => {
 
     res.status(200).json(products);
   } catch (error) {
-    console.error("FrontProduct Error:", error);
+    console.error("FRONT PRODUCT ERROR:", error);
 
     res.status(500).json({
+      success: false,
       message: "Failed to fetch products",
       error: error.message,
     });
