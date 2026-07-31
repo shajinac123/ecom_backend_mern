@@ -28,14 +28,25 @@ export const GetAllProduct = async (req, res) => {
 }
 
 //get product for frontpage
+
 export const FrontProduct = async (req, res) => {
   try {
-    const products = await promodel.find().populate("category", "name");
-    res.json(products);
-  } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    const products = await promodel
+      .find()
+      .populate("category");
+
+    res.status(200).json(products);
+  } catch (error) {
+    console.error("FrontProduct Error:", error);
+
+    res.status(500).json({
+      message: "Failed to fetch products",
+      error: error.message,
+    });
   }
-}
+};
+
+
 
 
 // delete product
