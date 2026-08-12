@@ -1,22 +1,35 @@
 import Order from "../models/order.models.js";
 import Cart from "../models/cart.model.js";
-
-// POST /api/order
-
+import Product from "../models/Product_model.js";
+import User from "../models/User_model.js";
 import axios from "axios";
+
+// ======================================================
+// GET DASHBOARD DATA
+// GET /api/dashboard
+// ======================================================
 
 export const getdashboardData = async (req, res) => {
   try {
-    // Total orders
+    // ------------------------------------------
+    // TOTAL ORDERS
+    // ------------------------------------------
     const totalOrders = await Order.countDocuments();
 
-    // Total products
+    // ------------------------------------------
+    // TOTAL PRODUCTS
+    // ------------------------------------------
     const totalProducts = await product.countDocuments();
 
-    // Total customers
+    // ------------------------------------------
+    // TOTAL CUSTOMERS
+    // ------------------------------------------
     const totalCustomers = await user.countDocuments();
 
-    // Total sales from paid orders
+    // ------------------------------------------
+    // TOTAL SALES
+    // Only successfully paid orders
+    // ------------------------------------------
     const totalSalesResult = await Order.aggregate([
       {
         $match: {
@@ -27,7 +40,7 @@ export const getdashboardData = async (req, res) => {
         $group: {
           _id: null,
           totalSales: {
-            $sum: "$grandTotal",
+            $sum: "$totalAmount",
           },
         },
       },
@@ -38,29 +51,41 @@ export const getdashboardData = async (req, res) => {
         ? totalSalesResult[0].totalSales
         : 0;
 
-    // Latest 5 orders
+    // ------------------------------------------
+    // RECENT 5 ORDERS
+    // ------------------------------------------
     const recentOrders = await Order.find()
       .populate("items.productId")
       .sort({ createdAt: -1 })
       .limit(5);
 
-    // Send all dashboard data
+    // ------------------------------------------
+    // RESPONSE
+    // ------------------------------------------
     res.status(200).json({
+      success: true,
       totalSales,
       totalOrders,
       totalProducts,
       totalCustomers,
       recentOrders,
     });
-
   } catch (error) {
     console.error("Dashboard error:", error);
 
     res.status(500).json({
+      success: false,
       message: "Failed to load dashboard",
+      error: error.message,
     });
   }
 };
+
+
+// ======================================================
+// GET SINGLE ORDER
+// GET /api/order/:id
+// ======================================================
 
 export const getSingleOrder = async (req, res) => {
   try {
@@ -81,10 +106,16 @@ export const getSingleOrder = async (req, res) => {
 };
 
 
+// ======================================================
+// POST ORDER
+// POST /api/order
+// ======================================================
 
 export const PostOrder = async (req, res) => {
   try {
-    // Auth check
+    // ------------------------------------------
+    // AUTH CHECK
+    // ------------------------------------------
     if (!req.user || !req.user.id) {
       return res.status(401).json({
         success: false,
@@ -92,9 +123,15 @@ export const PostOrder = async (req, res) => {
       });
     }
 
-    const { items, shippingAddress, paymentMethod } = req.body;
+    const {
+      items,
+      shippingAddress,
+      paymentMethod,
+    } = req.body;
 
-    // Validate items
+    // ------------------------------------------
+    // VALIDATE ITEMS
+    // ------------------------------------------
     if (!items || items.length === 0) {
       return res.status(400).json({
         success: false,
@@ -102,7 +139,9 @@ export const PostOrder = async (req, res) => {
       });
     }
 
-    // Shipping validation
+    // ------------------------------------------
+    // SHIPPING VALIDATION
+    // ------------------------------------------
     const {
       fullName,
       phone,
@@ -126,7 +165,9 @@ export const PostOrder = async (req, res) => {
       });
     }
 
-    // Validate phone
+    // ------------------------------------------
+    // PHONE VALIDATION
+    // ------------------------------------------
     if (!/^[0-9]{10}$/.test(phone)) {
       return res.status(400).json({
         success: false,
@@ -134,7 +175,9 @@ export const PostOrder = async (req, res) => {
       });
     }
 
-    // Validate payment method
+    // ------------------------------------------
+    // PAYMENT METHOD VALIDATION
+    // ------------------------------------------
     if (!["COD", "UPI", "CARD"].includes(paymentMethod)) {
       return res.status(400).json({
         success: false,
@@ -142,20 +185,30 @@ export const PostOrder = async (req, res) => {
       });
     }
 
-    // Total amount
+    // ------------------------------------------
+    // CALCULATE TOTAL
+    // ------------------------------------------
     const totalAmount = items.reduce(
       (sum, item) =>
-        sum + Number(item.price) * Number(item.quantity),
+        sum +
+        Number(item.price) * Number(item.quantity),
       0
     );
 
-    // Create order
+    // ------------------------------------------
+    // CREATE ORDER
+    // ------------------------------------------
     const order = new Order({
       user: req.user.id,
+
       items,
+
       shippingAddress,
+
       paymentMethod,
+
       totalAmount,
+
       paymentStatus:
         paymentMethod === "COD"
           ? "PENDING"
@@ -164,7 +217,9 @@ export const PostOrder = async (req, res) => {
 
     const savedOrder = await order.save();
 
-    // COD
+    // ------------------------------------------
+    // COD ORDER
+    // ------------------------------------------
     if (paymentMethod === "COD") {
       await Cart.deleteMany({
         user: req.user.id,
@@ -177,7 +232,9 @@ export const PostOrder = async (req, res) => {
       });
     }
 
+    // ------------------------------------------
     // CASHFREE ORDER
+    // ------------------------------------------
     const cashfreeResponse = await axios.post(
       "https://sandbox.cashfree.com/pg/orders",
       {
@@ -189,32 +246,40 @@ export const PostOrder = async (req, res) => {
 
         customer_details: {
           customer_id: req.user.id.toString(),
+
           customer_name: fullName,
+
           customer_phone: phone,
+
           customer_email:
             req.user.email || "test@gmail.com",
         },
 
         order_meta: {
           return_url:
-              "https//ecom.shajinac.online/orderdetails?order_id={order_id}",
+            "https://ecom.shajinac.online/orderdetails?order_id={order_id}",
         },
       },
       {
         headers: {
-          "x-client-id": process.env.CASHFREE_APP_ID,
+          "x-client-id":
+            process.env.CASHFREE_APP_ID,
 
           "x-client-secret":
             process.env.CASHFREE_SECRET_KEY,
 
-          "x-api-version": "2023-08-01",
+          "x-api-version":
+            "2023-08-01",
 
-          "Content-Type": "application/json",
+          "Content-Type":
+            "application/json",
         },
       }
     );
 
-    // Save payment details
+    // ------------------------------------------
+    // SAVE CASHFREE DETAILS
+    // ------------------------------------------
     savedOrder.cashfree_order_id =
       cashfreeResponse.data.cf_order_id;
 
@@ -223,172 +288,97 @@ export const PostOrder = async (req, res) => {
 
     await savedOrder.save();
 
+    // ------------------------------------------
+    // RESPONSE
+    // ------------------------------------------
     res.status(201).json({
       success: true,
+
       message: "Cashfree order created",
 
       payment_session_id:
-        cashfreeResponse.data.payment_session_id,
+        cashfreeResponse.data
+          .payment_session_id,
 
       order: savedOrder,
     });
-
   } catch (err) {
     console.log(
       "CASHFREE ERROR:",
-      err.response?.data || err.message
+      err.response?.data ||
+        err.message
     );
 
     res.status(500).json({
       success: false,
+
       message: "Server Error",
-      error: err.response?.data || err.message,
+
+      error:
+        err.response?.data ||
+        err.message,
     });
   }
 };
-// export const PostOrder = async (req, res) => {
-//   try {
-//     //  Auth check
-//     if (!req.user || !req.user.id) {
-//       return res.status(401).json({ message: "Unauthorized" });
-//     }
-
-//     const { items, shippingAddress, paymentMethod } = req.body;
-
-//     //  Validate items
-//     if (!items || items.length === 0) {
-//       return res.status(400).json({ message: "No items in order" });
-//     }
-
-//     for (let item of items) {
-//       if (
-//         !item.product ||
-//         !item.name ||
-//         !item.price ||
-//         !item.quantity ||
-//         !item.image
-//       ) {
-//         return res.status(400).json({
-//           message: "Invalid item structure",
-//         });
-//       }
-//     }
-
-//     //  Validate shipping address 
-//     const {
-//       fullName,
-//       phone,
-//       address,
-//       city,
-//       state,
-//       pincode,
-//     } = shippingAddress || {};
-
-//     if (
-//       !fullName ||
-//       !phone ||
-//       !address ||
-//       !city ||
-//       !state ||
-//       !pincode
-//     ) {
-//       return res.status(400).json({
-//         message: "Incomplete shipping address",
-//       });
-//     }
-
-//     //  Validate payment method
-//     if (!["COD", "UPI", "CARD"].includes(paymentMethod)) {
-//       return res.status(400).json({
-//         message: "Invalid payment method",
-//       });
-//     }
-
-//     //  Calculate total 
-//     const totalAmount = items.reduce(
-//       (sum, item) => sum + item.price * item.quantity,
-//       0
-//     );
-
-//     //  Create order
-//     const order = new Order({
-//       user: req.user.id,
-//       items,
-//       shippingAddress: {
-//         fullName,
-//         phone,
-//         address,
-//         city,
-//         state,
-//         pincode,
-//       },
-//       paymentMethod,
-//       totalAmount,
-//     });
-
-//     const savedOrder = await order.save();
-
-//     await Cart.deleteMany({
-//   user: req.user.id,
-// });
-
-//     res.status(201).json({
-//       message: "Order placed successfully",
-//       order: savedOrder,
-//     });
-
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({
-//       message: "Server Error",
-//       error: err.message,
-//     });
-//   }
-// };
 
 
+// ======================================================
+// GET ALL ORDERS
+// GET /api/order
+// ======================================================
 
 export const GetOrder = async (req, res) => {
   try {
-    // const orders = await Order.find()
-    const orders = await Order.find().sort({ createdAt: -1 });
+    const orders = await Order.find()
+      .sort({ createdAt: -1 });
 
     res.json(orders);
+  } catch (err) {
+    res.status(500).json({
+      message: "Server error",
+    });
   }
-  catch (err) {
-    
-    res.status(500).json({ message: "Server error" });
+};
 
-  }
-}
 
-export const UpdateOrderStatus = async (req, res) => {
+// ======================================================
+// UPDATE ORDER STATUS
+// ======================================================
 
+export const UpdateOrderStatus = async (
+  req,
+  res
+) => {
   try {
-
     const updatedOrder =
       await Order.findByIdAndUpdate(
         req.params.id,
         {
           orderStatus: req.body.status,
         },
-        { new: true }
+        {
+          new: true,
+        }
       );
 
+    if (!updatedOrder) {
+      return res.status(404).json({
+        message: "Order not found",
+      });
+    }
+
     res.json(updatedOrder);
-
   } catch (err) {
-
     res.status(500).json({
       message: "Status update failed",
     });
-
   }
 };
 
 
-//payment webhook
-
+// ======================================================
+// CASHFREE WEBHOOK
+// ======================================================
 
 export const cashfreeWebhook = async (
   req,
@@ -402,14 +392,28 @@ export const cashfreeWebhook = async (
 
     const data = req.body;
 
+    // ------------------------------------------
     // CASHFREE DATA
+    // ------------------------------------------
     const orderId =
       data?.data?.order?.order_id;
 
     const paymentStatus =
       data?.data?.payment?.payment_status;
 
+    console.log(
+      "Order ID:",
+      orderId
+    );
+
+    console.log(
+      "Payment Status:",
+      paymentStatus
+    );
+
+    // ------------------------------------------
     // FIND ORDER
+    // ------------------------------------------
     const order =
       await Order.findById(orderId);
 
@@ -420,28 +424,44 @@ export const cashfreeWebhook = async (
       });
     }
 
+    // ------------------------------------------
     // PAYMENT SUCCESS
-    if (paymentStatus === "SUCCESS") {
-
+    // ------------------------------------------
+    if (
+      paymentStatus === "SUCCESS"
+    ) {
       order.isPaid = true;
+
+      // IMPORTANT:
+      // Dashboard uses this value
+      order.paymentStatus = "Paid";
 
       order.orderStatus = "Processing";
 
       await order.save();
+
+      // Clear cart after successful payment
+      await Cart.deleteMany({
+        user: order.user,
+      });
 
       console.log(
         "Payment Successful"
       );
     }
 
+    // ------------------------------------------
     // PAYMENT FAILED
+    // ------------------------------------------
     if (
       paymentStatus === "FAILED"
     ) {
-
       order.isPaid = false;
 
-      order.orderStatus = "Cancelled";
+      order.paymentStatus = "Failed";
+
+      order.orderStatus =
+        "Cancelled";
 
       await order.save();
 
@@ -450,18 +470,21 @@ export const cashfreeWebhook = async (
       );
     }
 
+    // ------------------------------------------
+    // RESPONSE TO CASHFREE
+    // ------------------------------------------
     return res.status(200).json({
       success: true,
+
       message:
         "Webhook processed successfully",
     });
-
   } catch (err) {
-
     console.log(err);
 
     return res.status(500).json({
       success: false,
+
       message: err.message,
     });
   }
