@@ -7,8 +7,16 @@ import axios from "axios";
 
 export const getdashboardData = async (req, res) => {
   try {
+    // Total orders
     const totalOrders = await Order.countDocuments();
 
+    // Total products
+    const totalProducts = await product.countDocuments();
+
+    // Total customers
+    const totalCustomers = await user.countDocuments();
+
+    // Total sales from paid orders
     const totalSalesResult = await Order.aggregate([
       {
         $match: {
@@ -18,7 +26,9 @@ export const getdashboardData = async (req, res) => {
       {
         $group: {
           _id: null,
-          totalSales: { $sum: "$grandTotal" },
+          totalSales: {
+            $sum: "$grandTotal",
+          },
         },
       },
     ]);
@@ -28,16 +38,21 @@ export const getdashboardData = async (req, res) => {
         ? totalSalesResult[0].totalSales
         : 0;
 
+    // Latest 5 orders
     const recentOrders = await Order.find()
       .populate("items.productId")
       .sort({ createdAt: -1 })
       .limit(5);
 
+    // Send all dashboard data
     res.status(200).json({
       totalSales,
       totalOrders,
+      totalProducts,
+      totalCustomers,
       recentOrders,
     });
+
   } catch (error) {
     console.error("Dashboard error:", error);
 
@@ -45,7 +60,7 @@ export const getdashboardData = async (req, res) => {
       message: "Failed to load dashboard",
     });
   }
-}
+};
 
 export const getSingleOrder = async (req, res) => {
   try {
