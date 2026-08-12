@@ -5,7 +5,47 @@ import Cart from "../models/cart.model.js";
 
 import axios from "axios";
 
+export const getdashboardData = async (req, res) => {
+  try {
+    const totalOrders = await Order.countDocuments();
 
+    const totalSalesResult = await Order.aggregate([
+      {
+        $match: {
+          paymentStatus: "Paid",
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalSales: { $sum: "$grandTotal" },
+        },
+      },
+    ]);
+
+    const totalSales =
+      totalSalesResult.length > 0
+        ? totalSalesResult[0].totalSales
+        : 0;
+
+    const recentOrders = await Order.find()
+      .populate("items.productId")
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    res.status(200).json({
+      totalSales,
+      totalOrders,
+      recentOrders,
+    });
+  } catch (error) {
+    console.error("Dashboard error:", error);
+
+    res.status(500).json({
+      message: "Failed to load dashboard",
+    });
+  }
+}
 
 export const getSingleOrder = async (req, res) => {
   try {
