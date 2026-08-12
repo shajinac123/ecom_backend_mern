@@ -142,7 +142,7 @@ export const PostOrder = async (req, res) => {
 
         order_meta: {
           return_url:
-              "http://ecom.shajinac.online/orderdetails?order_id={order_id}",
+              "https//ecom.shajinac.online/orderdetails?order_id={order_id}",
         },
       },
       {
